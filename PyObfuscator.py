@@ -16,10 +16,10 @@ def rename_bytecode(outdir):  # Removes suffixes from the bytecode files.
 
     for file in directories:
         if exists(file) and exists(file.replace(args.suffix, '')):
-            print('There are duplicate files. Deleting the one with the suffix...')
+            #print('There are duplicate files. Deleting the one with the suffix...')
             remove(file)
         elif exists(file.replace(args.suffix, '')):
-            print('File has already been renamed...')
+            #print('File has already been renamed...')
             pass
         else:
             rename(file, file.replace(args.suffix, ''))  # Removes the suffix, making it so the file has the same name as the original script except for the extension.
@@ -40,13 +40,13 @@ def move_misc(indir, outdir):  # Copies miscellaneous files.
 
     for i in range(len(locations)):
         if exists(destinations[i]):
-            print(f'File already exists...')
+            #print(f'File already exists...')
             pass
         else:
             copytime = time()
-            print(f'Copying {locations[i]} to {destinations[i]}...')
+            #print(f'Copying {locations[i]} to {destinations[i]}...')
             copy(locations[i], destinations[i])
-            print(f'Time taken to copy: {time() - copytime:.2f}')
+            #print(f'Time taken to copy: {time() - copytime:.2f}')
 
 
 def move_bytecode(indir, outdir):  # Checks if this directory has a bytecode file and, if so, moves all its content to the output file, taking the place of .py files.
@@ -57,13 +57,13 @@ def move_bytecode(indir, outdir):  # Checks if this directory has a bytecode fil
         for file in listdir(join(indir, args.cache)):
             try:
                 if exists(join(outdir, file).replace(args.suffix, '')):  # Checks if the a file without the suffix already exists in the output.
-                    print(f'The file {file} has already been copied and renamed...')
+                    #print(f'The file {file} has already been copied and renamed...')
                     continue
                 else:
                     copytime = time()
-                    print(f'Copying {file} to {outdir}...')
+                    #print(f'Copying {file} to {outdir}...')
                     copy(join(indir, args.cache, file), outdir)
-                    print(f'Time taken to copy: {time() - copytime:.2f}')
+                    #print(f'Time taken to copy: {time() - copytime:.2f}')
             except shutil.Error:
                 pass
         rename_bytecode(outdir)
@@ -94,8 +94,12 @@ if __name__ == '__main__':
     parser.add_argument('output_dir', help='Where a copy of the input directory will be created and the bytecode and other files dumped.')
     parser.add_argument('-s', '--suffix', default='.cpython-311', help='The part of the name of the bytecode files which will be removed. The default is .cpython-311')
     parser.add_argument('-c', '--cache', type=str, default='__pycache__', help='The name of the folder where the Python interpreter has stored all the bytecode.')
-
     args = parser.parse_args()
+
+    if args.input_dir[-1] != '/' or args.input_dir[-1] != '\\':
+        args.input_dir += '/'
+    if args.output_dir[-1] != '/' or args.output_dir[-1] != '\\':
+        args.output_dir += '/'
 
     try:
         mkdir(args.output_dir)  # Creates the output directory
