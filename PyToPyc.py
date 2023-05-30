@@ -18,7 +18,7 @@ corresponding bytecode was being used.
 
 The way I recommend using this program is as follows: go into your source code directory; search for all the __pycache__ files (or whatever you might have them configure to be called),
 and delete them; run your program with the -OO parameter (such as: python -OO your_program_name.py); close it and finally run this module like the following:
-PyObfuscator.py source_code_directory output_directory -s .cpython-311.opt-2
+PyToPyc.py source_code_directory output_directory -s .cpython-311.opt-2
 '''
 
 
