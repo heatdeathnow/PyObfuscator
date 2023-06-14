@@ -17,4 +17,5 @@ The program is made as to expect the bytecode to always be inside a folder, as i
 2. Run your program with the command: `python -OO your_programs_main_file.py`.
 
 This is essential because the interpreter will then create just the necessary bytecode for running the program. There can be situations in which there is more bytecode than necessary (from unused modules and such). Furthermore, by passing the `-OO` argument, docstrings and `assert` statements will not be put in the bytecode, saving space.
+
 3. Run PyToPyc with the following command: `PyToPyc.py your_programs_directory new_directory`.
