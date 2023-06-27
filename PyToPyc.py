@@ -16,7 +16,7 @@ corresponding bytecode was being used.
 
 The way I recommend using this program is as follows: go into your source code directory; search for all the __pycache__ files (or whatever you might have them configure to be called),
 and delete them; run your program with the -OO parameter (such as: python -OO your_program_name.py); close it and finally run this module like the following:
-PyToPyc.py source_code_directory output_directory -s .cpython-311.opt-2
+PyToPyc.py source_code_directory output_directory
 """
 
 
@@ -27,6 +27,7 @@ def rename_bytecode(outdir):  # Removes suffixes from the bytecode files.
             file = join(outdir, i)
 
             if exists(file) and exists(file.replace(used_suffix, '')):
+                print(f'Duplicates found, removing the one that still has its suffix.')
                 remove(file)
 
             elif exists(file.replace(used_suffix, '')):
@@ -43,7 +44,8 @@ def move_misc(indir, outdir):  # Copies miscellaneous files.
     for i in listdir(indir):
         location = join(indir, i)
         destination = join(outdir, i)
-        if not isdir(location) and location[-3:] != '.py' and location[-4:] != '.pyc':  # If the file isn't a folder, isn't a Python script and isn't bytecode, keep its location and create a mirror location for it in the output.
+        if not isdir(location) and location[-3:] != '.py' and location[
+                                                              -4:] != '.pyc':  # If the file isn't a folder, isn't a Python script and isn't bytecode, keep its location and create a mirror location for it in the output.
             if exists(destination):  # If you try to copy a file that is already there, you will get a ShutilError.
                 print(f'File {destination} already exists...')
                 pass
@@ -65,25 +67,29 @@ def move_bytecode(indir, outdir):  # Checks if this directory has a bytecode fil
 
     if exists(join(indir, args.cache)):  # Checks for the bytecode file.
         for file in listdir(join(indir, args.cache)):
-            if args.suffix is None and used_suffix is None:
-                for suffix in suffixes:
-                    if suffix in file:
-                        used_suffix = suffix
-                        break
 
-            elif args.suffix is not None and args.suffix in file:
-                used_suffix = args.suffix
+            i = 0
+            while used_suffix is None:
+                try:
+                    if suffixes[i] in str(file):
+                        used_suffix = suffixes[i]
+                    i += 1
+                except IndexError:
+                    raise Exception(f'No suffix was passed and the program was unable to match the file {file} with any '
+                                    f'of the corresponding suffixes: {[suffix for suffix in suffixes]}')
 
-            elif args.suffix is not None:
-                raise Exception('The program was unable to locate the suffix passed as an argument on a bytecode file.\n'
-                                f'Suffix passed: {args.suffix}\n'
-                                f'File in which the failure occured: {file}')
+            if args.suffix is not None and used_suffix not in file:
+                raise Exception(f'The program was unable to match the user passed suffix {args.suffix} with the file {file}.')
 
-            elif used_suffix is None:
-                raise Exception('No suffix was specified and the program was unable to match any of the standard suffixes with the one being used in the inputed code.')
+            elif used_suffix not in file:
+                raise Exception(f'The program had previously matched the default suffix {used_suffix} with a file, '
+                                f'however, it was now unable to match it with the file {file}.')
 
-            if exists(join(outdir, file).replace(used_suffix, '')):  # Checks if the file without the suffix already exists in the output.
+            elif exists(join(outdir, file).replace(used_suffix, '')):  # Checks if the file without the suffix already exists in the output.
                 print(f'The file {file} has already been copied and renamed...')
+
+            elif exists(join(outdir, file)):
+                print(f'The file {file} has already been copied...')
 
             else:
                 copytime = time()
@@ -91,23 +97,25 @@ def move_bytecode(indir, outdir):  # Checks if this directory has a bytecode fil
                 copy(join(indir, args.cache, file), outdir)
                 print(f'Time taken to copy: {time() - copytime:.2f}')
 
-            rename_bytecode(outdir)
+        rename_bytecode(outdir)
 
 
-def recurse_copy(recdir):  # Enters each folder until its very, ignoring all others. Only after reaching and end, it goes for the next subfolders.
+def recurse_copy(
+        recdir):  # Enters each folder until its very end, ignoring all others. Only after reaching and end does it go for the next subfolders.
     move_bytecode(recdir, join(args.output_dir, recdir.replace(args.input_dir, '')))
     move_misc(recdir, join(args.output_dir, recdir.replace(args.input_dir, '')))
 
-    for i in listdir(recdir):  # Read the directories from where it is currently at.
+    for i in listdir(recdir):  # Reads the directories from where it is currently at.
         directory = join(recdir, i)  # Adds them to the directory it is currently at.
 
-        if isdir(directory) and args.cache not in directory and directory != recdir:  # If it's a directory, and not the bytecode directory, and it's different from the original...
+        if isdir(
+                directory) and args.cache not in directory and directory != recdir:  # If it's a directory, and not the bytecode directory, and it's different from the original...
             recurse_copy(directory)
 
 
 if __name__ == '__main__':
     runtime = time()
-    suffixes = ('cpython-311.opt-2.', 'cpython-311.opt-1.', '.cpython-311')
+    suffixes = ('.cpython-311.opt-2', '.cpython-311.opt-1', '.cpython-311')
     used_suffix = None
 
     parser = argparse.ArgumentParser(prog='PyToPyc',
@@ -117,7 +125,6 @@ if __name__ == '__main__':
     parser.add_argument('input_dir', help='The path to your Python code.')
     parser.add_argument('output_dir',
                         help='Where a copy of the input directory will be created and the bytecode and other files dumped.')
-    # parser.add_argument('-s', '--suffix', default='.cpython-311', help='The part of the name of the bytecode files which will be removed. The default is .cpython-311')
     parser.add_argument('-s', '--suffix', type=str,
                         help="The part of the bytecode files' name to be removed. The program already identifies the standard suffix names automatically, but if the suffixes do not follow "
                              "the standard, they can be specified with this argument.")
@@ -134,6 +141,8 @@ if __name__ == '__main__':
         args.output_dir += '\\'
 
     # Start of the program
+    used_suffix = args.suffix
+
     try:
         mkdir(args.output_dir)  # Creates the output directory
     except FileExistsError:
