@@ -1,26 +1,32 @@
-from os import mkdir, listdir, rename, remove
 from os.path import isdir, exists, join, normpath, basename
+from os import mkdir, listdir, rename, remove
+from argparse import ArgumentParser
+from time import perf_counter
 from shutil import copy
-from time import time
-import argparse
 
 """
 This program does not compile the code into bytecode by itself. If it were to use something like compile_dir, it would compile every single piece of Python code on that directory.
-However, that is not necessary. When you import a module or package into your virtual environment, not all of its parts are used. If the program were to do that, it would bloat the
-bytecode unnecessarily. Another option, which I considered, would have been to copy all non-.py and non-.pyc files into the new directory first and then compile all files which have
-a bytecode equivalent (meaning they have been previously imported by the source code and therefore won't just sit there doing nothing) with optimization 2. This would remove all
-docstrings and assert statements, which some modules and packages tend to have and that would just weight the final program down. I didn't go for this option because I thought it
-would be redundant. It may happen that you changed your program and some modules are no longer used, this approach would compile them anyways; besides, this would imply the addition
-of two modes for this module, one in which it just moves the bytecode with no compilation, and one in which it compiles it based on the possibly flawed assumption that all the would-be
-corresponding bytecode was being used.
+However, that is not necessary. When you import a module or package into your virtual environment, not all of its parts are used. If the program were to compile everything, it would 
+bloat the amount of bytecode unnecessarily. Another option, which I considered, would have been to copy all non-`.py` and non-`.pyc` files into the new directory first and then 
+compile all files which have a bytecode equivalent (meaning they have been previously imported by the source code and therefore won't just sit there doing nothing) with optimization 2. 
+This would remove all docstrings and assert statements, which some modules and packages tend to have and that would just weight the final program down. I didn't go for this option 
+because I thought it would be redundant. It may happen that you changed your program and some modules are no longer used, this approach would compile them anyways; besides, this would 
+imply the addition of two modes for this module, one in which it just moves the bytecode with no compilation, and one in which it compiles it based on the possibly flawed assumption 
+that all the would-be corresponding bytecode was being used.
 
 The way I recommend using this program is as follows: go into your source code directory; search for all the __pycache__ files (or whatever you might have them configure to be called),
-and delete them; run your program with the -OO parameter (such as: python -OO your_program_name.py); close it and finally run this module like the following:
-PyToPyc.py source_code_directory outputectory
+and delete them; run your program with the `-OO` parameter (such as: `python -OO your_program_name.py`). Sometimes, this doesn't compile the `main.py` file itself (the file you ran
+your program from) so you might have to manually compile it using the following line: `py_compile.compile('your_program_name.py', optimize=2)`. After everything is compiled to
+you can simply run this module like the following: `PyToPyc.py source_code_directory outputectory`.
 """
 
 
-def _rename_bytecode(outdir):  # Removes _suffixes from the bytecode files.
+def _rename_bytecode(outdir: str) -> None:
+    """
+    Removes the suffixes from the names of the bytecode files;
+    makes them the same name as the original source code file if not for the `.pyc` instead of `.py`.
+    """
+
     global _used_suffix
     for i in listdir(outdir):
         if i[-4:] == '.pyc':
@@ -38,7 +44,11 @@ def _rename_bytecode(outdir):  # Removes _suffixes from the bytecode files.
                 rename(file, file.replace(_used_suffix, ''))  # Removes the suffix, making it so the file has the same name as the original script except for the extension.
 
 
-def _move_misc(indir, outdir):  # Copies miscellaneous files.
+def _move_misc(indir: str, outdir: str) -> None:
+    """
+    Copies miscellaneous files in the input directory to its mirror location in the output directory.
+    """
+
     if not exists(outdir):
         mkdir(outdir)
 
@@ -52,18 +62,22 @@ def _move_misc(indir, outdir):  # Copies miscellaneous files.
                 pass
 
             else:
-                copytime = time()
+                copytime = perf_counter()
                 if _is_main: print(f'Copying {location} to {destination}...')
                 copy(location, destination)
                 try:
-                    if _is_main: print(f'Time taken to copy: {time() - copytime:.2f} seconds.')
+                    if _is_main: print(f'Time taken to copy: {perf_counter() - copytime:.2f} seconds.')
                     pass
                 except ZeroDivisionError:
                     if _is_main: print(f'Time taken to copy: 0 seconds.')
                     pass
 
 
-def _move_bytecode(indir, outdir):  # Checks if this directory has a bytecode file and, if so, moves all its content to the output file, taking the place of .py files.
+def _move_bytecode(indir: str, outdir: str) -> None:
+    """
+    Checks if this directory has a bytecode file and, if so, moves all its content to the output file, taking the place of `.py` files.
+    """
+
     global _used_suffix, _suffixes
     if not exists(outdir):
         mkdir(outdir)
@@ -78,15 +92,15 @@ def _move_bytecode(indir, outdir):  # Checks if this directory has a bytecode fi
                         _used_suffix = _suffixes[i]
                     i += 1
                 except IndexError:
-                    raise Exception(f'No suffix was passed and the program was unable to match the file {file} with any '
-                                    f'of the corresponding _suffixes: {[suffix for suffix in _suffixes]}')
+                    raise IndexError(f'No suffix was passed and the program was unable to match the file {file} with any '
+                                     f'of the corresponding _suffixes: {[suffix for suffix in _suffixes]}')
 
             if _user_suffix is not None and _used_suffix not in file:
-                raise Exception(f'The program was unable to match the user passed suffix {_user_suffix} with the file {file}.')
+                raise KeyError(f'The program was unable to match the user passed suffix {_user_suffix} with the file {file}.')
 
             elif _used_suffix not in file:
-                raise Exception(f'The program had previously matched the default suffix {_used_suffix} with a file, '
-                                f'however, it was now unable to match it with the file {file}.')
+                raise KeyError(f'The program had previously matched the default suffix {_used_suffix} with a file, '
+                               f'however, it was now unable to match it with the file {file}.')
 
             elif exists(join(outdir, file).replace(_used_suffix, '')):  # Checks if the file without the suffix already exists in the output.
                 if _is_main: print(f'The file {file} has already been copied and renamed...')
@@ -97,15 +111,21 @@ def _move_bytecode(indir, outdir):  # Checks if this directory has a bytecode fi
                 pass
 
             else:
-                copytime = time()
+                copytime = perf_counter()
                 if _is_main: print(f'Copying {file} to {outdir}...')
                 copy(join(indir, _cache, file), outdir)
-                if _is_main: print(f'Time taken to copy: {time() - copytime:.2f}')
+                if _is_main: print(f'Time taken to copy: {perf_counter() - copytime:.2f}')
 
         _rename_bytecode(outdir)
 
 
-def _recurse_copy(input_, indir, outdir):  # Enters each folder until its very end, ignoring all others. Only after reaching and end does it go for the next subfolders.
+def _recurse_copy(input_: str, indir: str, outdir: str) -> None:
+    """
+    This function enters each path until its very end while activating the `_move_bytecode` and `_move_misc` functions. It will ignore all the other possible
+    paths it could have taken until it reaches a dead-end. After reaching a dead-end, it will return one folder and go the next fork, if one is
+    available, if not it will return one more and so on.
+    """
+    
     _move_bytecode(indir, join(outdir, indir.replace(input_, '')))
     _move_misc(indir, join(outdir, indir.replace(input_, '')))
 
@@ -116,7 +136,11 @@ def _recurse_copy(input_, indir, outdir):  # Enters each folder until its very e
             _recurse_copy(input_, directory, outdir)
 
 
-def _fix_slash(path):
+def _fix_slash(path: str) -> str:
+    r"""
+    Replaces forward slashes with backslashes in a path. If the argument passed doesn't end in either slashes, this function will add a backslash to it.
+    """
+
     x = path.replace('/', '\\')
     if x[-1] != '\\':
         x += '\\'
@@ -124,17 +148,20 @@ def _fix_slash(path):
     return x
 
 
-def to_bytecode(directory, output=None, cache=None, suffix=None):
+def to_bytecode(directory: str, output: str = None, cache: str = None, suffix: str = None) -> None:
     """
     This functions goes through an entire Python project's directory and copies all the files to the output, excep the
-    source code (.py files) which it leaves behind, putting the bytecode (.pyc files) in its would-be place.
+    source code (`.py` files) which it leaves behind, putting the bytecode (`.pyc` files) in its would-be place.
 
-    Arguments:
+    Parameters:
 
     directory - The path to the Python project.
+
     output    - The path to where the program should dump the bytecode-compiled project. Default is the original name
                 plus " - bytecode".
+
     cache     - What the IDE has named the files that contain the bytecode. Default is "__pycache__".
+
     suffix    - The string the interpreter concatenates to the bytecode files' names. If nothing is passed, the program
                 will attempt to match the following suffixes ".cpython-311.opt-2", ".cpython-311.opt-1", ".cpython-311"
                 to the file names.
@@ -170,11 +197,11 @@ _is_main = False
 
 if __name__ == '__main__':
     _is_main = True
-    runtime = time()
+    runtime = perf_counter()
 
-    parser = argparse.ArgumentParser(prog='PyToPyc',
-                                     description='Takes in a Python project directory and copies all the bytecodes and non-py files to an output directory.',
-                                     epilog='Visit my GitHub: heatdeathnow')
+    parser = ArgumentParser(prog='PyToPyc',
+                            description='Takes in a Python project directory and copies all the bytecodes and non-py files to an output directory.',
+                            epilog='Visit my GitHub: heatdeathnow')
 
     parser.add_argument('input', help='The path to your Python code.')
     parser.add_argument('-o', '--output', type=str,
@@ -207,7 +234,7 @@ if __name__ == '__main__':
     _recurse_copy(args.input, args.input, args.output)
 
     try:
-        print(f'Total runtime: {time() - runtime:.2f} seconds.')
+        print(f'Total runtime: {perf_counter() - runtime:.2f} seconds.')
         pass
     except ZeroDivisionError:
         print(f'Total runtime: 0 seconds.')
